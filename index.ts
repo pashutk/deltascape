@@ -119,6 +119,7 @@ type PRReport = {
   authorHtmlUrl?: string;
   body?: string;
   commentsUrl: string;
+  mergedAt: string;
   // summarized
   summarized: string;
   summarizedDiff: string;
@@ -170,6 +171,12 @@ ${summarizedDiff}`,
     );
   }
 
+  if (!pull.merged_at) {
+    throw new Error(
+      `Failed to summarize not merged PR ${owner}/${repo}/${prNumber}`
+    );
+  }
+
   return {
     owner,
     repo,
@@ -182,6 +189,7 @@ ${summarizedDiff}`,
     authorAvatar: pull.user?.avatar_url,
     authorHtmlUrl: pull.user?.html_url,
     commentsUrl: pull.comments_url,
+    mergedAt: pull.merged_at,
     summarized,
     summarizedDiff,
   };
