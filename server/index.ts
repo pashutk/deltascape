@@ -268,7 +268,7 @@ const main = async () => {
   await client.connect();
 
   const owner = "Effect-TS";
-  const repo = "match";
+  const repo = "io";
   const endDate = new Date();
 
   const prNumbers: number[] = await fetchLastWeekPulls(
