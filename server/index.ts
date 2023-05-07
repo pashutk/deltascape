@@ -5,7 +5,7 @@
  * - proper error handling
  * - rate limiting for requests to external APIs
  */
-import { isAfter, isBefore, parseISO, subDays } from "date-fns";
+import { isAfter, isBefore, parseISO, previousMonday, subDays } from "date-fns";
 import { Octokit } from "octokit";
 import { Configuration, OpenAIApi } from "openai";
 import assert from "node:assert";
@@ -269,53 +269,107 @@ const fetchLastWeekPulls = async (
   return pulls.map(({ number }) => number);
 };
 
-const withMongoClient = async (
-  f: (client: MongoClient) => PromiseLike<void>
-) => {
+const withMongoClient = async <A>(
+  f: (client: MongoClient) => PromiseLike<A>
+): Promise<A> => {
   const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
   await client.connect();
 
-  await f(client);
+  const result = await f(client);
 
   await client.close();
+
+  return result;
 };
 
-const summarizeLastWeekPrs = async (owner: string, repo: string) => {
-  await withMongoClient(async (client) => {
-    await client.db("deltascape").collection("pulls").find().toArray();
-  });
-};
-
-const main = async () => {
-  const owner = "qdrant";
-  const repo = "qdrant";
-  const endDate = new Date();
-
-  const prNumbers: number[] = await fetchLastWeekPulls(
-    owner,
-    repo,
-    subDays(endDate, 3),
-    endDate
+const summarizePrsSinceMonday = async (owner: string, repo: string) => {
+  const prs = await withMongoClient(async (client) =>
+    client
+      .db("deltascape")
+      .collection("pulls")
+      .aggregate([
+        {
+          $match: {
+            owner,
+            repo,
+          },
+        },
+        {
+          $project: {
+            mergedAtDate: {
+              $dateFromString: {
+                dateString: "$mergedAt",
+              },
+            },
+            title: 1,
+            summarized: 1,
+          },
+        },
+        {
+          $match: {
+            mergedAtDate: { $gte: previousMonday(new Date()) },
+          },
+        },
+      ])
+      .toArray()
   );
 
-  console.log(prNumbers);
+  const changes = prs.map((pr) => `${pr.title}\n${pr.summarized}`).join("\n\n");
 
-  const prs = prNumbers;
-
-  await withMongoClient(async (client) => {
-    for (const number of prs) {
-      const report = await getReportForPullRequest(owner, repo, number);
-      console.log(report);
-      await client
-        .db("deltascape")
-        .collection("pulls")
-        .updateOne(
-          { owner: report.owner, repo: report.repo, number: report.number },
-          { $set: report },
-          { upsert: true }
-        );
-    }
+  const response = await openai.createChatCompletion({
+    model: "gpt-4",
+    messages: [
+      {
+        role: "system",
+        content: `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of pull request names and descriptions. You answer with a short and concise description of what changes are introduced. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
+      },
+      {
+        role: "user",
+        content: changes,
+      },
+    ],
   });
+  return response.data.choices[0].message?.content;
+};
+
+const storeLastWeekUpdate = (owner: string, repo: string) =>
+  withMongoClient((client) =>
+    summarizePrsSinceMonday(owner, repo).then((summary) =>
+      client.db("deltascape").collection("weeklyUpdates").insertOne({
+        owner,
+        repo,
+        createdAt: new Date(),
+        update: summary,
+      })
+    )
+  );
+
+const storeLastWeekPrs = (owner: string, repo: string) =>
+  withMongoClient((client) =>
+    fetchLastWeekPulls(owner, repo, subDays(new Date(), 7), new Date()).then(
+      async (prNumbers) => {
+        for (const number of prNumbers) {
+          const report = await getReportForPullRequest(owner, repo, number);
+          console.log(report);
+          await client
+            .db("deltascape")
+            .collection("pulls")
+            .updateOne(
+              { owner: report.owner, repo: report.repo, number: report.number },
+              { $set: report },
+              { upsert: true }
+            );
+        }
+      }
+    )
+  );
+
+const main = async () => {
+  const owner = "Effect-TS";
+  const repo = "io";
+
+  // storeLastWeekUpdate(owner, repo);
+  // storeLastWeekPrs(owner, repo);
 };
 
 main();
