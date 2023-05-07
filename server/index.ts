@@ -268,23 +268,19 @@ const main = async () => {
   await client.connect();
 
   const owner = "Effect-TS";
-  const repo = "schema";
-  // const endDate = new Date();
+  const repo = "match";
+  const endDate = new Date();
 
-  // const prNumbers: number[] = await fetchLastWeekPulls(
-  //   owner,
-  //   repo,
-  //   subDays(endDate, 30),
-  //   endDate
-  // );
+  const prNumbers: number[] = await fetchLastWeekPulls(
+    owner,
+    repo,
+    subDays(endDate, 7),
+    endDate
+  );
 
-  // console.log(prNumbers);
+  console.log(prNumbers);
 
-  // const prs = [268, 267, 266, 265];
-  const prs = [
-    254, 252, 251, 250, 249, 248, 247, 246, 245, 244, 236, 243, 217, 237, 241,
-    240, 239, 238, 231, 235, 234, 233, 232, 230, 229, 228, 227,
-  ];
+  const prs = prNumbers;
 
   for (const number of prs) {
     const report = await getReportForPullRequest(owner, repo, number);
