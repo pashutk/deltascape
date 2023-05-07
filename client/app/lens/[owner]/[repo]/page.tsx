@@ -3,8 +3,9 @@ import { MongoClient } from "mongodb";
 
 async function fetchRRs(owner: string, repo: string) {
   if (
-    owner === "Effect-TS" &&
-    (repo === "schema" || repo === "match" || repo === "io")
+    (owner === "Effect-TS" &&
+      (repo === "schema" || repo === "match" || repo === "io")) ||
+    (owner === "directus" && repo === "directus")
   ) {
     const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
     await client.connect();

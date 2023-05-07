@@ -33,6 +33,19 @@ async function fetchRepos(owner: string) {
       },
     ];
   }
+  if (owner === "directus") {
+    const [{ data: directusData }] = await Promise.all([
+      octokit.rest.repos.get({ owner, repo: "directus" }),
+    ]);
+
+    return [
+      {
+        id: "directus",
+        description: directusData.description,
+        updatedAt: parseISO(directusData.updated_at),
+      },
+    ];
+  }
   return [];
 }
 

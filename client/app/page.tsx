@@ -4,13 +4,22 @@ import { Octokit } from "octokit";
 
 async function fetchOwners() {
   const octokit = new Octokit({ auth: process.env.OCTOKIT_API_KEY });
-  const { data } = await octokit.rest.orgs.get({ org: "Effect-TS" });
+  const [{ data: effecttsData }, { data: directusData }] = await Promise.all([
+    octokit.rest.orgs.get({ org: "Effect-TS" }),
+    octokit.rest.orgs.get({ org: "directus" }),
+  ]);
   return [
     {
       id: "Effect-TS",
+      reposCount: 3,
+      avatarUrl: effecttsData.avatar_url,
+      description: effecttsData.description,
+    },
+    {
+      id: "directus",
       reposCount: 1,
-      avatarUrl: data.avatar_url,
-      description: data.description,
+      avatarUrl: directusData.avatar_url,
+      description: directusData.description,
     },
   ];
 }

@@ -263,18 +263,32 @@ const fetchLastWeekPulls = async (
   return pulls.map(({ number }) => number);
 };
 
-const main = async () => {
+const withMongoClient = async (
+  f: (client: MongoClient) => PromiseLike<void>
+) => {
   const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
   await client.connect();
 
-  const owner = "Effect-TS";
-  const repo = "io";
+  await f(client);
+
+  await client.close();
+};
+
+const summarizeLastWeekPrs = async (owner: string, repo: string) => {
+  await withMongoClient(async (client) => {
+    await client.db("deltascape").collection("pulls").find().toArray();
+  });
+};
+
+const main = async () => {
+  const owner = "directus";
+  const repo = "directus";
   const endDate = new Date();
 
   const prNumbers: number[] = await fetchLastWeekPulls(
     owner,
     repo,
-    subDays(endDate, 7),
+    subDays(endDate, 3),
     endDate
   );
 
@@ -282,20 +296,20 @@ const main = async () => {
 
   const prs = prNumbers;
 
-  for (const number of prs) {
-    const report = await getReportForPullRequest(owner, repo, number);
-    console.log(report);
-    await client
-      .db("deltascape")
-      .collection("pulls")
-      .updateOne(
-        { owner: report.owner, repo: report.repo, number: report.number },
-        { $set: report },
-        { upsert: true }
-      );
-  }
-
-  await client.close();
+  await withMongoClient(async (client) => {
+    for (const number of prs) {
+      const report = await getReportForPullRequest(owner, repo, number);
+      console.log(report);
+      await client
+        .db("deltascape")
+        .collection("pulls")
+        .updateOne(
+          { owner: report.owner, repo: report.repo, number: report.number },
+          { $set: report },
+          { upsert: true }
+        );
+    }
+  });
 };
 
 main();
