@@ -2,6 +2,7 @@ import { formatRelative } from "date-fns";
 import { parseISO } from "date-fns";
 import Link from "next/link";
 import { Octokit } from "octokit";
+import { MongoClient } from "mongodb";
 
 async function fetchRepos(owner: string) {
   const octokit = new Octokit({
@@ -22,10 +23,30 @@ async function fetchRepos(owner: string) {
     org.repos.map((repo) => octokit.rest.repos.get({ owner, repo }))
   );
 
+  const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
+  await client.connect();
+  const updates = (
+    await Promise.all(
+      org.repos.map((repo) =>
+        client
+          .db("deltascape")
+          .collection("weeklyUpdates")
+          .find({ owner, repo }, { projection: { _id: 0 } })
+          .sort({ createdAt: -1 })
+          .limit(1)
+          .toArray()
+      )
+    )
+  )
+    .map(([item]) => item)
+    .filter((item) => item !== undefined);
+  await client.close();
+
   return repos.map(({ data }) => ({
     id: data.name,
     description: data.description,
     updatedAt: parseISO(data.updated_at),
+    lastWeekUpdate: updates.find((update) => update.repo === data.name)?.update,
   }));
 }
 
@@ -52,15 +73,15 @@ export default async function Owner({
                   Description
                 </th>
                 <th scope="col" className="px-4 md:px-8 lg:px-12 py-3">
-                  Pull requests
+                  Updated at
                 </th>
                 <th scope="col" className="px-4 md:px-8 lg:px-12 py-3">
-                  Last update
+                  Last week update
                 </th>
               </tr>
             </thead>
             <tbody>
-              {repos.map(({ id, description, updatedAt }) => (
+              {repos.map(({ id, description, updatedAt, lastWeekUpdate }) => (
                 <tr
                   key={id}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
@@ -77,9 +98,11 @@ export default async function Owner({
                     </Link>
                   </td>
                   <td className="px-4 md:px-8 lg:px-12 py-8">{description}</td>
-                  <td className="px-4 md:px-8 lg:px-12 py-8">Not available</td>
                   <td className="px-4 md:px-8 lg:px-12 py-8">
                     {formatRelative(updatedAt, new Date())}
+                  </td>
+                  <td className="px-4 md:px-8 lg:px-12 py-8 whitespace-pre-wrap">
+                    {lastWeekUpdate ?? "Not available"}
                   </td>
                 </tr>
               ))}
