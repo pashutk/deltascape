@@ -4,24 +4,26 @@ import { Octokit } from "octokit";
 
 async function fetchOwners() {
   const octokit = new Octokit({ auth: process.env.OCTOKIT_API_KEY });
-  const [{ data: effecttsData }, { data: directusData }] = await Promise.all([
-    octokit.rest.orgs.get({ org: "Effect-TS" }),
-    octokit.rest.orgs.get({ org: "directus" }),
-  ]);
-  return [
-    {
-      id: "Effect-TS",
-      reposCount: 3,
-      avatarUrl: effecttsData.avatar_url,
-      description: effecttsData.description,
-    },
-    {
-      id: "directus",
-      reposCount: 1,
-      avatarUrl: directusData.avatar_url,
-      description: directusData.description,
-    },
+  const supportedOrgs = [
+    { org: "Effect-TS", repos: 3 },
+    { org: "directus", repos: 1 },
   ];
+
+  const orgs = await Promise.all(
+    supportedOrgs.map(({ org, repos }) =>
+      octokit.rest.orgs.get({ org }).then(({ data }) => ({
+        org,
+        repos,
+        data,
+      }))
+    )
+  );
+  return orgs.map(({ org, repos, data }) => ({
+    id: org,
+    reposCount: repos,
+    avatarUrl: data.avatar_url,
+    description: data.description,
+  }));
 }
 
 export default async function Home() {

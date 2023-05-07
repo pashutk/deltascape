@@ -7,46 +7,25 @@ async function fetchRepos(owner: string) {
   const octokit = new Octokit({
     auth: process.env.OCTOKIT_API_KEY,
   });
-  if (owner === "Effect-TS") {
-    const [{ data: schemaData }, { data: matchData }, { data: ioData }] =
-      await Promise.all([
-        octokit.rest.repos.get({ owner, repo: "schema" }),
-        octokit.rest.repos.get({ owner, repo: "match" }),
-        octokit.rest.repos.get({ owner, repo: "io" }),
-      ]);
+  const supportedOrgs = [
+    { org: "Effect-TS", repos: ["schema", "match", "io"] },
+    { org: "directus", repos: ["directus"] },
+  ];
 
-    return [
-      {
-        id: "schema",
-        description: schemaData.description,
-        updatedAt: parseISO(schemaData.updated_at),
-      },
-      {
-        id: "match",
-        description: matchData.description,
-        updatedAt: parseISO(matchData.updated_at),
-      },
-      {
-        id: "io",
-        description: ioData.description,
-        updatedAt: parseISO(ioData.updated_at),
-      },
-    ];
+  const org = supportedOrgs.find(({ org }) => org === owner);
+  if (!org) {
+    return [];
   }
-  if (owner === "directus") {
-    const [{ data: directusData }] = await Promise.all([
-      octokit.rest.repos.get({ owner, repo: "directus" }),
-    ]);
 
-    return [
-      {
-        id: "directus",
-        description: directusData.description,
-        updatedAt: parseISO(directusData.updated_at),
-      },
-    ];
-  }
-  return [];
+  const repos = await Promise.all(
+    org.repos.map((repo) => octokit.rest.repos.get({ owner, repo }))
+  );
+
+  return repos.map(({ data }) => ({
+    id: data.name,
+    description: data.description,
+    updatedAt: parseISO(data.updated_at),
+  }));
 }
 
 export default async function Owner({

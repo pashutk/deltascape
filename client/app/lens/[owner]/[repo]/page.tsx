@@ -1,11 +1,18 @@
 import { formatRelative, parseISO } from "date-fns";
 import { MongoClient } from "mongodb";
 
-async function fetchRRs(owner: string, repo: string) {
+async function fetchPRs(owner: string, repo: string) {
+  const supportedOrgs = [
+    { org: "Effect-TS", repos: ["schema", "match", "io"] },
+    { org: "directus", repos: ["directus"] },
+  ];
+
   if (
-    (owner === "Effect-TS" &&
-      (repo === "schema" || repo === "match" || repo === "io")) ||
-    (owner === "directus" && repo === "directus")
+    supportedOrgs.some(
+      ({ org: supportedOrg, repos: supportedRepos }) =>
+        supportedOrg === owner &&
+        supportedRepos.some((supportedRepo) => supportedRepo === repo)
+    )
   ) {
     const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
     await client.connect();
@@ -35,7 +42,7 @@ type Props = {
 };
 
 export default async function Repo({ params: { owner, repo } }: Props) {
-  const pulls = await fetchRRs(owner, repo);
+  const pulls = await fetchPRs(owner, repo);
   return (
     <main className="min-h-screen items-center justify-between p-8 md:p-24">
       <div className="relative place-items-center">
