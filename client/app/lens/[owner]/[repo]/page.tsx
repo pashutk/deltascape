@@ -1,25 +1,25 @@
-import { formatRelative } from "date-fns";
-import Link from "next/link";
+import { formatRelative, parseISO } from "date-fns";
+import { MongoClient } from "mongodb";
 
 async function fetchRRs(owner: string, repo: string) {
   if (owner === "Effect-TS" && repo === "schema") {
-    return [
-      {
-        id: 123,
-        title: "test",
-        summary: "PR description",
-        mergedAt: new Date(),
-        githubUrl: "https://github.com",
-      },
-      {
-        id: 234,
-        title: "Boom README.md",
-        summary: "Another description",
-        mergedAt: new Date(),
-        githubUrl: "https://github.com",
-      },
-    ];
+    const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
+    await client.connect();
+    const pulls = await client
+      .db("deltascape")
+      .collection("pulls")
+      .find({ owner, repo })
+      .toArray();
+
+    return pulls.map((pull) => ({
+      id: pull.number,
+      title: pull.title,
+      summary: pull.summarized,
+      mergedAt: parseISO(pull.mergedAt),
+      githubUrl: pull.htmlUrl,
+    }));
   }
+
   return [];
 }
 
