@@ -10,11 +10,13 @@ import { Octokit } from "octokit";
 import { Configuration, OpenAIApi } from "openai";
 import assert from "node:assert";
 import dotenv from "dotenv";
+import { MongoClient } from "mongodb";
 
 dotenv.config();
 assert(process.env.OCTOKIT_API_KEY);
 assert(process.env.OPENAI_API_KEY);
 assert(process.env.OPENAI_ORG_ID);
+assert(process.env.MONGO_CONNECTION_URI);
 
 const octokit = new Octokit({ auth: process.env.OCTOKIT_API_KEY });
 
@@ -237,6 +239,9 @@ const fetchLastWeekPulls = async (
 };
 
 const main = async () => {
+  const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
+  await client.connect();
+
   const endDate = new Date();
   const startDate = subDays(endDate, 7);
 
@@ -252,8 +257,22 @@ const main = async () => {
 
   console.log(prNumbers);
 
-  const report = await getReportForPullRequest(owner, repo, prNumbers[1]);
-  console.log(report);
+  const prs = [268, 267, 266, 265];
+
+  for (const number of prs) {
+    const report = await getReportForPullRequest(owner, repo, number);
+    console.log(report);
+    await client
+      .db("deltascape")
+      .collection("pulls")
+      .updateOne(
+        { owner: report.owner, repo: report.repo, number: report.number },
+        { $set: report },
+        { upsert: true }
+      );
+  }
+
+  await client.close();
 };
 
 main();

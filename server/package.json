@@ -16,6 +16,7 @@
   "dependencies": {
     "date-fns": "^2.29.3",
     "dotenv": "^16.0.3",
+    "mongodb": "^5.4.0",
     "octokit": "^2.0.14",
     "openai": "^3.2.1"
   }
