@@ -39,7 +39,7 @@ export default async function Owner({
     <main className="min-h-screen items-center justify-between p-8 md:p-24">
       <div className="relative place-items-center">
         <h1 className="text-center text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-8 md:mb-16">
-          Select repo in {owner}
+          {owner} repositories
         </h1>
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-5xl mx-auto">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
