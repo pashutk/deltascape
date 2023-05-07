@@ -8,12 +8,28 @@ async function fetchRepos(owner: string) {
     auth: process.env.OCTOKIT_API_KEY,
   });
   if (owner === "Effect-TS") {
-    const { data } = await octokit.rest.repos.get({ owner, repo: "Effect-TS" });
+    const [{ data: schemaData }, { data: matchData }, { data: ioData }] =
+      await Promise.all([
+        octokit.rest.repos.get({ owner, repo: "schema" }),
+        octokit.rest.repos.get({ owner, repo: "match" }),
+        octokit.rest.repos.get({ owner, repo: "io" }),
+      ]);
+
     return [
       {
         id: "schema",
-        description: data.description,
-        updatedAt: parseISO(data.updated_at),
+        description: schemaData.description,
+        updatedAt: parseISO(schemaData.updated_at),
+      },
+      {
+        id: "match",
+        description: matchData.description,
+        updatedAt: parseISO(matchData.updated_at),
+      },
+      {
+        id: "io",
+        description: ioData.description,
+        updatedAt: parseISO(ioData.updated_at),
       },
     ];
   }

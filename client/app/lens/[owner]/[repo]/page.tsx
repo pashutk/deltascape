@@ -2,7 +2,10 @@ import { formatRelative, parseISO } from "date-fns";
 import { MongoClient } from "mongodb";
 
 async function fetchRRs(owner: string, repo: string) {
-  if (owner === "Effect-TS" && repo === "schema") {
+  if (
+    owner === "Effect-TS" &&
+    (repo === "schema" || repo === "match" || repo === "io")
+  ) {
     const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
     await client.connect();
     const pulls = await client
