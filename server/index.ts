@@ -42,68 +42,93 @@ const splitDiffBySections = (diff: string) => {
     return diffSections;
   }
 
-  const lines = diff.split("\n");
-
-  let section = "";
-  while (lines.length) {
-    const line = lines.shift();
-    if (line === undefined) {
+  let buffer = diff;
+  while (true) {
+    const nextChunk = buffer.indexOf("\ndiff");
+    if (nextChunk === -1) {
+      diffSections.push(buffer);
       return diffSections;
     }
 
-    if (line.startsWith("diff ")) {
-      diffSections.push(section);
-      section = line;
-    } else {
-      section += `\n${line}`;
-    }
+    const section = buffer.slice(0, nextChunk);
+    diffSections.push(section);
+    buffer = buffer.slice(nextChunk + 1 /* \n symbol */);
   }
-  diffSections.push(section);
-  return diffSections;
 };
 
-const joinStringsUpToLength = (
-  strings: string[],
-  maxLength: number,
-  sep: string
-) => {
-  if (strings.length === 0) {
+const splitByLength = (input: string, maxLength: number): string[] => {
+  const result: string[] = [];
+  let buffer = input;
+  while (true) {
+    if (buffer.length <= maxLength) {
+      result.push(buffer);
+      return result;
+    }
+
+    result.push(buffer.slice(0, maxLength));
+    buffer = buffer.slice(maxLength);
+  }
+};
+
+const splitDiffsIntoChunks = (
+  diffs: string[],
+  chunkMaxSize: number,
+  sep: string = "\n"
+): string[] => {
+  const diffsChunked = diffs.flatMap((diff) =>
+    splitByLength(diff, chunkMaxSize)
+  );
+
+  if (diffsChunked.length === 0) {
     return [];
   }
 
-  const result: string[] = [strings[0]];
-  for (let i = 1; i < strings.length; i++) {
-    const diff = strings[i];
-    const last = result[result.length - 1];
-    if (last.length + diff.length < maxLength) {
-      result[result.length - 1] = last + diff;
+  const chunksPacked: string[] = [diffsChunked.shift()!];
+  diffsChunked.forEach((chunk) => {
+    const newChunk = chunksPacked[chunksPacked.length - 1] + sep + chunk;
+    if (newChunk.length > chunkMaxSize) {
+      chunksPacked.push(chunk);
     } else {
-      result.push(diff);
+      chunksPacked[chunksPacked.length - 1] = newChunk;
     }
-  }
-  return result;
+  });
+  return chunksPacked;
 };
 
 const compressDiff = async (diff: string) => {
   const systemPrompt =
     "You are a tool for extreme compression of git diffs. You receive git diff from the user and rewrite it in such a way that it preserves the meaning of the changes. The resulting text should be just a couple of sentences for each diff. Do not enumerate items of the resulting list, and do not prepend hyphens or minus signs.";
 
-  const response = await openai.createChatCompletion({
-    model: "gpt-4",
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: diff },
-    ],
-    temperature: 0,
-  });
+  try {
+    const response = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: diff },
+      ],
+      temperature: 0,
+    });
 
-  return response.data.choices[0].message?.content;
+    return response.data.choices[0].message?.content;
+  } catch (err) {
+    throw new Error(
+      // @ts-expect-error
+      `Failed to create chat completion: ${JSON.stringify(err!.toJSON())}`
+    );
+  }
 };
+
+const MODEL_MAX_TOKENS = 4096;
+const DIFF_SYMBOLS_PER_TOKEN = 2;
 
 const compressDiffFile = async (content: string) => {
   const diffs = splitDiffBySections(content);
-  const chunks = joinStringsUpToLength(diffs, 4096 * 2, "\n");
-  const compressed = await Promise.all(chunks.map((c) => compressDiff(c)));
+  const buckets = splitDiffsIntoChunks(
+    diffs,
+    MODEL_MAX_TOKENS * DIFF_SYMBOLS_PER_TOKEN,
+    "\n"
+  );
+  const compressed = await Promise.all(buckets.map((b) => compressDiff(b)));
   return compressed.filter((a) => a).join("\n");
 };
 
@@ -244,22 +269,21 @@ const main = async () => {
 
   const owner = "Effect-TS";
   const repo = "schema";
-  const endDate = new Date();
+  // const endDate = new Date();
 
-  const prNumbers: number[] = await fetchLastWeekPulls(
-    owner,
-    repo,
-    subDays(endDate, 30),
-    endDate
-  );
+  // const prNumbers: number[] = await fetchLastWeekPulls(
+  //   owner,
+  //   repo,
+  //   subDays(endDate, 30),
+  //   endDate
+  // );
 
-  console.log(prNumbers);
+  // console.log(prNumbers);
 
   // const prs = [268, 267, 266, 265];
   const prs = [
-    264, 261, 259, 258, 257, 256, 255, 254, 252, 251, 250, 249, 248, 247, 246,
-    245, 244, 236, 243, 217, 237, 241, 240, 239, 238, 231, 235, 234, 233, 232,
-    230, 229, 228, 227,
+    254, 252, 251, 250, 249, 248, 247, 246, 245, 244, 236, 243, 217, 237, 241,
+    240, 239, 238, 231, 235, 234, 233, 232, 230, 229, 228, 227,
   ];
 
   for (const number of prs) {
