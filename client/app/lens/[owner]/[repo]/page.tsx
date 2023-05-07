@@ -1,58 +1,61 @@
 import { formatRelative } from "date-fns";
-import { parseISO } from "date-fns";
 import Link from "next/link";
-import { Octokit } from "octokit";
 
-async function fetchRepos(owner: string) {
-  const octokit = new Octokit({
-    auth: process.env.OCTOKIT_API_KEY,
-  });
-  if (owner === "Effect-TS") {
-    const { data } = await octokit.rest.repos.get({ owner, repo: "Effect-TS" });
+async function fetchRRs(owner: string, repo: string) {
+  if (owner === "Effect-TS" && repo === "schema") {
     return [
       {
-        id: "schema",
-        description: data.description,
-        updatedAt: parseISO(data.updated_at),
+        id: 123,
+        title: "test",
+        summary: "PR description",
+        mergedAt: new Date(),
+      },
+      {
+        id: 234,
+        title: "Boom README.md",
+        summary: "Another description",
+        mergedAt: new Date(),
       },
     ];
   }
   return [];
 }
 
-export default async function Owner({
-  params: { owner },
-}: {
-  params: { owner: string };
-}) {
-  const repos = await fetchRepos(owner);
-  console.log(repos);
+type Props = {
+  params: {
+    repo: string;
+    owner: string;
+  };
+};
+
+export default async function Repo({ params: { owner, repo } }: Props) {
+  const pulls = await fetchRRs(owner, repo);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="relative flex flex-col place-items-center">
         <h1 className="text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-16">
-          Select repo in {owner}
+          Select PR in {owner}/{repo}
         </h1>
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-4xl">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
                 <th scope="col" className="px-12 py-3">
-                  Name
+                  Pull Request
                 </th>
                 <th scope="col" className="px-12 py-3">
-                  Description
+                  Title
                 </th>
                 <th scope="col" className="px-12 py-3">
-                  Pull requests
+                  Merged
                 </th>
                 <th scope="col" className="px-12 py-3">
-                  Last update
+                  Summary
                 </th>
               </tr>
             </thead>
             <tbody>
-              {repos.map(({ id, description, updatedAt }) => (
+              {pulls.map(({ id, title, summary, mergedAt }) => (
                 <tr
                   key={id}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
@@ -62,17 +65,17 @@ export default async function Owner({
                     className="px-12 py-8 font-medium text-gray-900 whitespace-nowrap dark:text-white"
                   >
                     <Link
-                      href={`/lens/${owner}/${id}`}
+                      href={`/lens/${owner}/${repo}/${id}`}
                       className="inline-flex items-center font-medium text-blue-600 dark:text-blue-500 hover:underline"
                     >
                       {id}
                     </Link>
                   </td>
-                  <td className="px-12 py-8">{description}</td>
-                  <td className="px-12 py-8">Not available</td>
+                  <td className="px-12 py-8">{title}</td>
                   <td className="px-12 py-8">
-                    {formatRelative(updatedAt, new Date())}
+                    {formatRelative(mergedAt, new Date())}
                   </td>
+                  <td className="px-12 py-8">{summary}</td>
                 </tr>
               ))}
             </tbody>
