@@ -282,8 +282,8 @@ const summarizeLastWeekPrs = async (owner: string, repo: string) => {
 };
 
 const main = async () => {
-  const owner = "directus";
-  const repo = "directus";
+  const owner = "qdrant";
+  const repo = "qdrant";
   const endDate = new Date();
 
   const prNumbers: number[] = await fetchLastWeekPulls(

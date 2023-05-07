@@ -7,6 +7,7 @@ async function fetchOwners() {
   const supportedOrgs = [
     { org: "Effect-TS", repos: 3 },
     { org: "directus", repos: 1 },
+    { org: "qdrant", repos: 1 },
   ];
 
   const orgs = await Promise.all(

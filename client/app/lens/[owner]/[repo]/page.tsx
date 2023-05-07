@@ -5,6 +5,7 @@ async function fetchPRs(owner: string, repo: string) {
   const supportedOrgs = [
     { org: "Effect-TS", repos: ["schema", "match", "io"] },
     { org: "directus", repos: ["directus"] },
+    { org: "qdrant", repos: ["qdrant"] },
   ];
 
   if (

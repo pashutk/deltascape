@@ -10,6 +10,7 @@ async function fetchRepos(owner: string) {
   const supportedOrgs = [
     { org: "Effect-TS", repos: ["schema", "match", "io"] },
     { org: "directus", repos: ["directus"] },
+    { org: "qdrant", repos: ["qdrant"] },
   ];
 
   const org = supportedOrgs.find(({ org }) => org === owner);
