@@ -9,12 +9,14 @@ async function fetchRRs(owner: string, repo: string) {
         title: "test",
         summary: "PR description",
         mergedAt: new Date(),
+        githubUrl: "https://github.com",
       },
       {
         id: 234,
         title: "Boom README.md",
         summary: "Another description",
         mergedAt: new Date(),
+        githubUrl: "https://github.com",
       },
     ];
   }
@@ -55,7 +57,7 @@ export default async function Repo({ params: { owner, repo } }: Props) {
               </tr>
             </thead>
             <tbody>
-              {pulls.map(({ id, title, summary, mergedAt }) => (
+              {pulls.map(({ id, title, summary, mergedAt, githubUrl }) => (
                 <tr
                   key={id}
                   className="bg-white border-b dark:bg-gray-800 dark:border-gray-700"
@@ -64,12 +66,12 @@ export default async function Repo({ params: { owner, repo } }: Props) {
                     scope="row"
                     className="px-12 py-8 font-medium text-gray-900 whitespace-nowrap dark:text-white"
                   >
-                    <Link
-                      href={`/lens/${owner}/${repo}/${id}`}
+                    <a
+                      href={githubUrl}
                       className="inline-flex items-center font-medium text-blue-600 dark:text-blue-500 hover:underline"
                     >
                       {id}
-                    </Link>
+                    </a>
                   </td>
                   <td className="px-12 py-8">{title}</td>
                   <td className="px-12 py-8">
