@@ -36,22 +36,22 @@ type Props = {
 export default async function Repo({ params: { owner, repo } }: Props) {
   const pulls = await fetchRRs(owner, repo);
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="relative flex flex-col place-items-center">
-        <h1 className="text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-16">
+    <main className="min-h-screen items-center justify-between p-8 md:p-24">
+      <div className="relative place-items-center">
+        <h1 className="text-center text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-8 md:mb-16">
           Select PR in {owner}/{repo}
         </h1>
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-5xl">
+        <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-5xl mx-auto">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
-                <th scope="col" className="px-12 py-3">
+                <th scope="col" className="px-4 md:px-8 lg:px-12 py-3">
                   Pull Request
                 </th>
-                <th scope="col" className="px-12 py-3">
+                <th scope="col" className="px-4 md:px-8 lg:px-12 py-3">
                   Merged
                 </th>
-                <th scope="col" className="px-12 py-3">
+                <th scope="col" className="px-4 md:px-8 lg:px-12 py-3">
                   Summary
                 </th>
               </tr>
@@ -64,7 +64,7 @@ export default async function Repo({ params: { owner, repo } }: Props) {
                 >
                   <td
                     scope="row"
-                    className="px-12 py-8 font-medium text-gray-900 dark:text-white"
+                    className="px-4 md:px-8 lg:px-12 py-8 font-medium text-gray-900 dark:text-white"
                   >
                     {title}{" "}
                     <span className="whitespace-nowrap">
@@ -78,10 +78,10 @@ export default async function Repo({ params: { owner, repo } }: Props) {
                       )
                     </span>
                   </td>
-                  <td className="px-12 py-8">
+                  <td className="px-4 md:px-8 lg:px-12 py-8">
                     {formatRelative(mergedAt, new Date())}
                   </td>
-                  <td className="px-12 py-8">{summary}</td>
+                  <td className="px-4 md:px-8 lg:px-12 py-8">{summary}</td>
                 </tr>
               ))}
             </tbody>
