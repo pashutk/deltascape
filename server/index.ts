@@ -11,6 +11,7 @@ import { Configuration, OpenAIApi } from "openai";
 import assert from "node:assert";
 import dotenv from "dotenv";
 import { MongoClient } from "mongodb";
+import pLimit from "p-limit";
 
 dotenv.config();
 assert(process.env.OCTOKIT_API_KEY);
@@ -121,6 +122,8 @@ const compressDiff = async (diff: string) => {
 const MODEL_MAX_TOKENS = 4096;
 const DIFF_SYMBOLS_PER_TOKEN = 2;
 
+const limit3 = pLimit(3);
+
 const compressDiffFile = async (content: string) => {
   const diffs = splitDiffBySections(content);
   const buckets = splitDiffsIntoChunks(
@@ -128,7 +131,9 @@ const compressDiffFile = async (content: string) => {
     MODEL_MAX_TOKENS * DIFF_SYMBOLS_PER_TOKEN,
     "\n"
   );
-  const compressed = await Promise.all(buckets.map((b) => compressDiff(b)));
+  const compressed = await Promise.all(
+    buckets.map((b) => limit3(() => compressDiff(b)))
+  );
   return compressed.filter((a) => a).join("\n");
 };
 
