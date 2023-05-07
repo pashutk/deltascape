@@ -26,7 +26,6 @@ export default async function Owner({
   params: { owner: string };
 }) {
   const repos = await fetchRepos(owner);
-  console.log(repos);
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="relative flex flex-col place-items-center">
