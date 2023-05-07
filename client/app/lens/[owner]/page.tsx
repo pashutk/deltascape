@@ -32,7 +32,7 @@ export default async function Owner({
         <h1 className="text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-16">
           Select repo in {owner}
         </h1>
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-4xl">
+        <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-5xl">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
