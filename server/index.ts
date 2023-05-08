@@ -5,7 +5,15 @@
  * - proper error handling
  * - rate limiting for requests to external APIs
  */
-import { isAfter, isBefore, parseISO, previousMonday, subDays } from "date-fns";
+import {
+  isAfter,
+  isBefore,
+  parseISO,
+  previousMonday,
+  startOfWeek,
+  subDays,
+  subWeeks,
+} from "date-fns";
 import { Octokit } from "octokit";
 import { Configuration, OpenAIApi } from "openai";
 import assert from "node:assert";
@@ -282,7 +290,12 @@ const withMongoClient = async <A>(
   return result;
 };
 
-const summarizePrsSinceMonday = async (owner: string, repo: string) => {
+const summarizePrs = async (
+  owner: string,
+  repo: string,
+  startDate: Date,
+  endDate: Date
+) => {
   const prs = await withMongoClient(async (client) =>
     client
       .db("deltascape")
@@ -307,7 +320,7 @@ const summarizePrsSinceMonday = async (owner: string, repo: string) => {
         },
         {
           $match: {
-            mergedAtDate: { $gte: previousMonday(new Date()) },
+            mergedAtDate: { $gte: startDate, $lte: endDate },
           },
         },
       ])
@@ -332,9 +345,14 @@ const summarizePrsSinceMonday = async (owner: string, repo: string) => {
   return response.data.choices[0].message?.content;
 };
 
-const storeLastWeekUpdate = (owner: string, repo: string) =>
+const storeLastWeekUpdate = (
+  owner: string,
+  repo: string,
+  startDate: Date,
+  endDate: Date
+) =>
   withMongoClient((client) =>
-    summarizePrsSinceMonday(owner, repo).then((summary) =>
+    summarizePrs(owner, repo, startDate, endDate).then((summary) =>
       client.db("deltascape").collection("weeklyUpdates").insertOne({
         owner,
         repo,
@@ -344,9 +362,14 @@ const storeLastWeekUpdate = (owner: string, repo: string) =>
     )
   );
 
-const storeLastWeekPrs = (owner: string, repo: string) =>
+const storeLastWeekPrs = (
+  owner: string,
+  repo: string,
+  startDate: Date,
+  endDate: Date
+) =>
   withMongoClient((client) =>
-    fetchLastWeekPulls(owner, repo, subDays(new Date(), 7), new Date()).then(
+    fetchLastWeekPulls(owner, repo, startDate, endDate).then(
       async (prNumbers) => {
         for (const number of prNumbers) {
           const report = await getReportForPullRequest(owner, repo, number);
@@ -365,11 +388,48 @@ const storeLastWeekPrs = (owner: string, repo: string) =>
   );
 
 const main = async () => {
-  const owner = "Effect-TS";
-  const repo = "io";
+  const [_interpreter, _file, command, param1, param2] = process.argv as [
+    string,
+    string,
+    ...(string | undefined)[]
+  ];
 
-  // storeLastWeekUpdate(owner, repo);
-  // storeLastWeekPrs(owner, repo);
+  const now = new Date();
+
+  switch (command) {
+    case "lastweekrepos": {
+      if (!param1 || !param2) {
+        throw "provide owner and repo";
+      }
+
+      const endDate = startOfWeek(now, { weekStartsOn: 1 });
+
+      console.log(
+        await fetchLastWeekPulls(param1, param2, subWeeks(endDate, 1), endDate)
+      );
+      return;
+    }
+
+    case "storelastweekprs": {
+      if (!param1 || !param2) {
+        throw "provide owner and repo";
+      }
+
+      const endDate = startOfWeek(now, { weekStartsOn: 1 });
+      await storeLastWeekPrs(param1, param2, subWeeks(endDate, 1), endDate);
+      return;
+    }
+
+    case "storelastweekupdate": {
+      if (!param1 || !param2) {
+        throw "provide owner and repo";
+      }
+
+      const endDate = startOfWeek(now, { weekStartsOn: 1 });
+      await storeLastWeekUpdate(param1, param2, subWeeks(endDate, 1), endDate);
+      return;
+    }
+  }
 };
 
 main();
