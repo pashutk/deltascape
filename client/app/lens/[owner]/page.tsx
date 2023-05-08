@@ -1,19 +1,34 @@
-import { formatRelative } from "date-fns";
+import { formatRelative, startOfWeek, subWeeks } from "date-fns";
 import { parseISO } from "date-fns";
 import Link from "next/link";
 import { Octokit } from "octokit";
-import { MongoClient } from "mongodb";
+import { MongoClient, WithId, Document } from "mongodb";
+import { useState } from "react";
+import Update from "./update";
+
+const supportedOrgs = [
+  { org: "Effect-TS", repos: ["schema", "match", "io"] },
+  { org: "directus", repos: ["directus"] },
+  { org: "qdrant", repos: ["qdrant"] },
+  { org: "flipperdevices", repos: ["flipperzero-firmware"] },
+];
+
+async function fetchOrg(owner: string) {
+  const octokit = new Octokit({
+    auth: process.env.OCTOKIT_API_KEY,
+  });
+  if (!supportedOrgs.some(({ org }) => org === owner)) {
+    return undefined;
+  }
+
+  const orgData = await octokit.rest.orgs.get({ org: owner });
+  return orgData.data;
+}
 
 async function fetchRepos(owner: string) {
   const octokit = new Octokit({
     auth: process.env.OCTOKIT_API_KEY,
   });
-  const supportedOrgs = [
-    { org: "Effect-TS", repos: ["schema", "match", "io"] },
-    { org: "directus", repos: ["directus"] },
-    { org: "qdrant", repos: ["qdrant"] },
-    { org: "flipperdevices", repos: ["flipperzero-firmware"] },
-  ];
 
   const org = supportedOrgs.find(({ org }) => org === owner);
   if (!org) {
@@ -40,7 +55,7 @@ async function fetchRepos(owner: string) {
     )
   )
     .map(([item]) => item)
-    .filter((item) => item !== undefined);
+    .filter((item): item is WithId<Document> => item !== undefined);
   await client.close();
 
   return repos.map(({ data }) => ({
@@ -51,19 +66,48 @@ async function fetchRepos(owner: string) {
   }));
 }
 
+async function fetchLastWeekUpdate(owner: string) {
+  const client = new MongoClient(process.env.MONGO_CONNECTION_URI!);
+  await client.connect();
+
+  const weekStartAt = subWeeks(startOfWeek(new Date(), { weekStartsOn: 1 }), 1);
+  const [update] = await client
+    .db("deltascape")
+    .collection("weeklyOrgUpdates")
+    .find({ owner, weekStartAt })
+    .toArray();
+
+  await client.close();
+  return update;
+}
+
 export default async function Owner({
   params: { owner },
 }: {
   params: { owner: string };
 }) {
-  const repos = await fetchRepos(owner);
+  const [repos, orgData, updates] = await Promise.all([
+    fetchRepos(owner),
+    fetchOrg(owner),
+    fetchLastWeekUpdate(owner),
+  ]);
+  const description = orgData?.description;
+
   return (
-    <main className="min-h-screen items-center justify-between p-8 md:p-24">
-      <div className="relative place-items-center">
-        <h1 className="text-center text-4xl font-extrabold leading-none tracking-tight text-gray-900 md:text-5xl lg:text-6xl dark:text-white mb-8 md:mb-16">
-          {owner} repositories
+    <main className="min-h-screen items-center justify-between px-4 py-8 md:p-24">
+      <div className="relative place-items-center max-w-5xl mx-auto">
+        <h1 className="text-center text-5xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white mb-8 md:mb-16">
+          {owner}
         </h1>
-        <div className="relative overflow-x-auto shadow-md sm:rounded-lg max-w-5xl mx-auto">
+        {description && (
+          <p className="text-center text-gray-500 dark:text-gray-400 mb-8 -mt-4 md:-mt-8">
+            {description}
+          </p>
+        )}
+        {updates && (
+          <Update short={updates.shortUpdate} full={updates.update} />
+        )}
+        <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
               <tr>
