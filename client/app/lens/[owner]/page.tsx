@@ -96,17 +96,23 @@ export default async function Owner({
   return (
     <main className="min-h-screen items-center justify-between px-4 py-8 md:p-24">
       <div className="relative place-items-center max-w-5xl mx-auto">
-        <h1 className="text-center text-5xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white mb-8 md:mb-16">
-          {owner}
-        </h1>
-        {description && (
-          <p className="text-center text-gray-500 dark:text-gray-400 mb-8 -mt-4 md:-mt-8">
-            {description}
-          </p>
-        )}
-        {updates && (
-          <Update short={updates.shortUpdate} full={updates.update} />
-        )}
+        <div className="flex flex-col lg:flex-row lg:gap-8">
+          <div>
+            <h1 className="text-center text-5xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white mb-8 md:mb-16">
+              {owner}
+            </h1>
+            {description && (
+              <p className="text-center text-gray-500 dark:text-gray-400 mb-8 -mt-4 md:-mt-8">
+                {description}
+              </p>
+            )}
+          </div>
+          <div>
+            {updates && (
+              <Update short={updates.shortUpdate} full={updates.update} />
+            )}
+          </div>
+        </div>
         <div className="relative overflow-x-auto shadow-md sm:rounded-lg">
           <table className="w-full text-sm text-left text-gray-500 dark:text-gray-400">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">

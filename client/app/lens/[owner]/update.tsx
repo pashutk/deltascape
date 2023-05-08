@@ -16,7 +16,7 @@ export default function Update({ short, full }: Props) {
         Last week update
       </h2>
       {updateMode === "short" && (
-        <p className="text-center text-gray-500 dark:text-gray-400 mb-8 max-w-2xl mx-auto">
+        <p className="text-center text-gray-500 dark:text-gray-400 mb-8 max-w-2xl mx-auto lg:text-start">
           {short}{" "}
           <span
             onClick={() => setUpdateMode("full")}
@@ -41,7 +41,7 @@ export default function Update({ short, full }: Props) {
       )}
 
       {updateMode === "full" && (
-        <p className="text-center text-gray-500 dark:text-gray-400 mb-8 whitespace-pre-wrap max-w-2xl mx-auto">
+        <p className="text-center text-gray-500 dark:text-gray-400 mb-8 whitespace-pre-wrap max-w-2xl mx-auto lg:text-start">
           {full}{" "}
           <span
             onClick={() => setUpdateMode("short")}
