@@ -345,7 +345,55 @@ const summarizePrs = async (
   return response.data.choices[0].message?.content;
 };
 
-const storeLastWeekUpdate = (
+const summarizeRepoUpdates = async (
+  owner: string,
+  startDate: Date,
+  endDate: Date
+) => {
+  const updates = await withMongoClient(async (client) =>
+    client
+      .db("deltascape")
+      .collection("weeklyUpdates")
+      .find({ owner, weekStartAt: { $gte: startDate, $lte: endDate } })
+      .toArray()
+  );
+
+  const changes = updates.map(({ update }) => update).join("\n\n");
+
+  const summarizeResponse = await openai.createChatCompletion({
+    model: "gpt-4",
+    messages: [
+      {
+        role: "system",
+        content: `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of updates. Each update is a desscription of changes happened over the past week in one of the organisation projects. You answer with a short and concise description of what changes are introduced across whole organization. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
+      },
+      {
+        role: "user",
+        content: changes,
+      },
+    ],
+  });
+  const summary = summarizeResponse.data.choices[0].message?.content;
+
+  const shortSummaryResponse = await openai.createChatCompletion({
+    model: "gpt-4",
+    messages: [
+      {
+        role: "system",
+        content: `You are a summarization tool. Given a list of changes over the last week, you summarize it into 1-2 sentences. You are straight to the point and produce a concise summary.`,
+      },
+      {
+        role: "user",
+        content: changes,
+      },
+    ],
+  });
+  const shortSummary = shortSummaryResponse.data.choices[0].message?.content;
+
+  return { summary, shortSummary };
+};
+
+const storeLastWeekRepoUpdate = (
   owner: string,
   repo: string,
   startDate: Date,
@@ -357,8 +405,27 @@ const storeLastWeekUpdate = (
         owner,
         repo,
         createdAt: new Date(),
+        weekStart: startDate,
         update: summary,
       })
+    )
+  );
+
+const storeLastWeekOrgUpdate = (
+  owner: string,
+  startDate: Date,
+  endDate: Date
+) =>
+  withMongoClient((client) =>
+    summarizeRepoUpdates(owner, startDate, endDate).then(
+      ({ summary, shortSummary }) =>
+        client.db("deltascape").collection("weeklyOrgUpdates").insertOne({
+          owner,
+          createdAt: new Date(),
+          weekStart: startDate,
+          update: summary,
+          shortUpdate: shortSummary,
+        })
     )
   );
 
@@ -420,13 +487,28 @@ const main = async () => {
       return;
     }
 
-    case "storelastweekupdate": {
+    case "storelastweekrepoupdate": {
       if (!param1 || !param2) {
         throw "provide owner and repo";
       }
 
       const endDate = startOfWeek(now, { weekStartsOn: 1 });
-      await storeLastWeekUpdate(param1, param2, subWeeks(endDate, 1), endDate);
+      await storeLastWeekRepoUpdate(
+        param1,
+        param2,
+        subWeeks(endDate, 1),
+        endDate
+      );
+      return;
+    }
+
+    case "storelastweekorgupdate": {
+      if (!param1) {
+        throw "provide owner";
+      }
+
+      const endDate = startOfWeek(now, { weekStartsOn: 1 });
+      await storeLastWeekOrgUpdate(param1, subWeeks(endDate, 1), endDate);
       return;
     }
   }
