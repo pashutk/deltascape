@@ -97,7 +97,7 @@ export default async function Owner({
     <main className="min-h-screen items-center justify-between px-4 py-8 md:p-24">
       <div className="relative place-items-center max-w-5xl mx-auto">
         <div className="flex flex-col lg:flex-row lg:gap-8">
-          <div>
+          <div className="grow">
             <h1 className="text-center text-5xl font-extrabold leading-none tracking-tight text-gray-900 dark:text-white mb-8 md:mb-16">
               {owner}
             </h1>
