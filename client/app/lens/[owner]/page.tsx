@@ -12,6 +12,7 @@ async function fetchRepos(owner: string) {
     { org: "Effect-TS", repos: ["schema", "match", "io"] },
     { org: "directus", repos: ["directus"] },
     { org: "qdrant", repos: ["qdrant"] },
+    { org: "flipperdevices", repos: ["flipperzero-firmware"] },
   ];
 
   const org = supportedOrgs.find(({ org }) => org === owner);
