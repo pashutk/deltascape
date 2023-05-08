@@ -405,7 +405,7 @@ const storeLastWeekRepoUpdate = (
         owner,
         repo,
         createdAt: new Date(),
-        weekStart: startDate,
+        weekStartAt: startDate,
         update: summary,
       })
     )
@@ -422,7 +422,7 @@ const storeLastWeekOrgUpdate = (
         client.db("deltascape").collection("weeklyOrgUpdates").insertOne({
           owner,
           createdAt: new Date(),
-          weekStart: startDate,
+          weekStartAt: startDate,
           update: summary,
           shortUpdate: shortSummary,
         })
