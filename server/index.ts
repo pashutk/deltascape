@@ -104,21 +104,31 @@ const splitDiffsIntoChunks = (
   return chunksPacked;
 };
 
+const completeChat = async (
+  systemMessage: string,
+  userMessage: string,
+  options?: { temperature?: number; model?: "gpt-4" | "gpt-3.5" }
+) => {
+  const temperature = options?.temperature ?? 0.7;
+  const model = options?.model ?? "gpt-4";
+
+  const response = await openai.createChatCompletion({
+    model,
+    messages: [
+      { role: "system", content: systemMessage },
+      { role: "user", content: userMessage },
+    ],
+    temperature,
+  });
+  return response.data.choices[0].message?.content;
+};
+
 const compressDiff = async (diff: string) => {
   const systemPrompt =
     "You are a tool for extreme compression of git diffs. You receive git diff from the user and rewrite it in such a way that it preserves the meaning of the changes. The resulting text should be just a couple of sentences for each diff. Do not enumerate items of the resulting list, and do not prepend hyphens or minus signs.";
 
   try {
-    const response = await openai.createChatCompletion({
-      model: "gpt-4",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: diff },
-      ],
-      temperature: 0,
-    });
-
-    return response.data.choices[0].message?.content;
+    return await completeChat(systemPrompt, diff, { temperature: 0 });
   } catch (err) {
     throw new Error(
       // @ts-expect-error
@@ -179,12 +189,8 @@ const getReportForPullRequest = async (
   const diff = await fetchText(pull.diff_url);
   const summarizedDiff = await compressDiffFile(diff);
 
-  const summarizeResponse = await openai.createChatCompletion({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You're a tool for pull request changes summarization.
+  const summarized = await completeChat(
+    `You're a tool for pull request changes summarization.
 You provided with the following structure:
 - TITLE: Pull request title
 - DESCRIPTION: Pull request description
@@ -193,23 +199,15 @@ After you recieve all this data you answer with a short and concise description 
 You try to mention all important changes but also to not overwhelm user with a lot of details.
 You are to maximize describing what the change DOES and not what the change IS.
 Your main goal is to tell what's new. You brief and straight to the point while doing that.`,
-      },
-      {
-        role: "user",
-        content: `TITLE: ${pull.title}
+    `TITLE: ${pull.title}
 DESCRIPTION:
 ${pull.body}\n\n
 DIFF:
-${summarizedDiff}`,
-      },
-    ],
-  });
+${summarizedDiff}`
+  );
 
-  const summarized = summarizeResponse.data.choices[0].message?.content;
   if (!summarized) {
-    throw new Error(
-      `Failed to summarize: ${JSON.stringify(summarizeResponse.data)}`
-    );
+    throw new Error(`Failed to summarize`);
   }
 
   if (!pull.merged_at) {
@@ -329,20 +327,10 @@ const summarizePrs = async (
 
   const changes = prs.map((pr) => `${pr.title}\n${pr.summarized}`).join("\n\n");
 
-  const response = await openai.createChatCompletion({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of pull request names and descriptions. You answer with a short and concise description of what changes are introduced. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
-      },
-      {
-        role: "user",
-        content: changes,
-      },
-    ],
-  });
-  return response.data.choices[0].message?.content;
+  return completeChat(
+    `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of pull request names and descriptions. You answer with a short and concise description of what changes are introduced. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
+    changes
+  );
 };
 
 const summarizeRepoUpdates = async (
@@ -360,35 +348,15 @@ const summarizeRepoUpdates = async (
 
   const changes = updates.map(({ update }) => update).join("\n\n");
 
-  const summarizeResponse = await openai.createChatCompletion({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of updates. Each update is a desscription of changes happened over the past week in one of the organisation projects. You answer with a short and concise description of what changes are introduced across whole organization. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
-      },
-      {
-        role: "user",
-        content: changes,
-      },
-    ],
-  });
-  const summary = summarizeResponse.data.choices[0].message?.content;
+  const summary = completeChat(
+    `You're a tool for summarizing changes over the past week in the project repository. The user will send you a list of updates. Each update is a desscription of changes happened over the past week in one of the organisation projects. You answer with a short and concise description of what changes are introduced across whole organization. You are to maximize describing what the change DOES and not what the change IS. Your main goal is to tell what's new. You are brief and straight to the point while doing that. You try to mention all important changes but also to not overwhelm users with many details. Group what can be grouped, and prioritize important changes over fixes and dependency updates.`,
+    changes
+  );
 
-  const shortSummaryResponse = await openai.createChatCompletion({
-    model: "gpt-4",
-    messages: [
-      {
-        role: "system",
-        content: `You are a summarization tool. Given a list of changes over the last week, you summarize it into 1-2 sentences. You are straight to the point and produce a concise summary.`,
-      },
-      {
-        role: "user",
-        content: changes,
-      },
-    ],
-  });
-  const shortSummary = shortSummaryResponse.data.choices[0].message?.content;
+  const shortSummary = await completeChat(
+    "You are a summarization tool. Given a list of changes over the last week, you summarize it into 1-2 sentences. You are straight to the point and produce a concise summary.",
+    changes
+  );
 
   return { summary, shortSummary };
 };
@@ -453,6 +421,11 @@ const storeLastWeekPrs = (
       }
     )
   );
+
+const oneSentenceSummary = async (text: string) => {
+  const systemMessage = `You're tool for summarizing project changes over the last week. You produce extremely short (1 sentence) description of the changes the user sent to you. You try to preserve new features and important updates only. You skip generic, abstract information and keep only juicy parts.`;
+  return completeChat(systemMessage, text);
+};
 
 const main = async () => {
   const [_interpreter, _file, command, param1, param2] = process.argv as [
